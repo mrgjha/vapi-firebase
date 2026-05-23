@@ -1,60 +1,148 @@
 const express = require("express");
 const admin = require("firebase-admin");
-const cors = require("cors");
 require("dotenv").config();
 
 const app = express();
-app.use(cors());
+const PORT = process.env.PORT || 3000;
+
+/* =================================
+   Middleware
+================================= */
+
 app.use(express.json());
 
-// Initialize Firebase
+/* =================================
+   Firebase Admin Configuration
+================================= */
+
+const serviceAccount = {
+  projectId: process.env.FIREBASE_PROJECT_ID,
+  clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
+  privateKey: process.env.FIREBASE_PRIVATE_KEY
+    ? process.env.FIREBASE_PRIVATE_KEY.replace(/\\n/g, "\n")
+    : undefined,
+};
+
+/* =================================
+   Initialize Firebase
+================================= */
+
 admin.initializeApp({
-  credential: admin.credential.cert({
-    projectId: process.env.FIREBASE_PROJECT_ID,
-    clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
-    privateKey: process.env.FIREBASE_PRIVATE_KEY.replace(/\\n/g, "\n"),
-  }),
-  databaseURL: process.env.FIREBASE_DATABASE_URL,
+  credential: admin.credential.cert(serviceAccount),
 });
 
-const firestore = admin.firestore();
-const rtdb = admin.database();
+const db = admin.firestore();
 
-// ── Query Firestore ──────────────────────────────
-app.post("/query-firestore", async (req, res) => {
-  const { collection, field, value } = req.body;
+console.log("🔥 Firebase Connected");
+
+/* =================================
+   Home Route
+================================= */
+
+app.get("/", (req, res) => {
+  res.send("🚀 Firestore API Running");
+});
+
+/* =================================
+   Firestore Connection Test
+================================= */
+
+app.get("/test-firestore", async (req, res) => {
+
   try {
-    const snapshot = await firestore
+
+    const snapshot = await db.collection("contacts").get();
+
+    res.json({
+      success: true,
+      totalDocuments: snapshot.size,
+    });
+
+  } catch (error) {
+
+    console.error("❌ Firestore Test Error:", error);
+
+    res.status(500).json({
+      success: false,
+      error: error.message,
+    });
+  }
+});
+
+/* =================================
+   Query Firestore
+================================= */
+
+app.post("/queryFirestore", async (req, res) => {
+
+  try {
+
+    console.log("📥 Request Body:", req.body);
+
+    const { collection, field, value } = req.body;
+
+    /* Validation */
+
+    if (!collection || !field || !value) {
+
+      return res.status(400).json({
+        success: false,
+        message: "Missing collection, field, or value",
+      });
+    }
+
+    /* Query Firestore */
+
+    const snapshot = await db
       .collection(collection)
       .where(field, "==", value)
-      .limit(5)
       .get();
 
+    /* No Results */
+
     if (snapshot.empty) {
-      return res.json({ result: `No records found.` });
+
+      return res.json({
+        success: false,
+        message: "No matching document found",
+      });
     }
-    const records = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-    return res.json({ result: records });
-  } catch (err) {
-    return res.status(500).json({ error: err.message });
+
+    /* Extract Documents */
+
+    const results = [];
+
+    snapshot.forEach((doc) => {
+
+      results.push({
+        id: doc.id,
+        ...doc.data(),
+      });
+    });
+
+    /* Send Success Response */
+
+    res.json({
+      success: true,
+      count: results.length,
+      data: results,
+    });
+
+  } catch (error) {
+
+    console.error("❌ Query Error:", error);
+
+    res.status(500).json({
+      success: false,
+      error: error.message,
+    });
   }
 });
 
-// ── Query Realtime Database ──────────────────────
-app.post("/query-rtdb", async (req, res) => {
-  const { path } = req.body;
-  try {
-    const snapshot = await rtdb.ref(path).once("value");
-    if (!snapshot.exists()) {
-      return res.json({ result: `No data found at path: ${path}` });
-    }
-    return res.json({ result: snapshot.val() });
-  } catch (err) {
-    return res.status(500).json({ error: err.message });
-  }
+/* =================================
+   Start Server
+================================= */
+
+app.listen(PORT, () => {
+  console.log(`🚀 Server running on port ${PORT}`);
 });
-
-// ── Health Check ─────────────────────────────────
-app.get("/", (req, res) => res.send("VAPI Firebase API is running ✅"));
-
-app.listen(3000, () => console.log("🚀 Server running on port 3000"));
