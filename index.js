@@ -51,7 +51,12 @@ app.get("/test-firestore", async (req, res) => {
 
   try {
 
+    console.log("🧪 Testing Firestore Connection...");
+
     const snapshot = await db.collection("contacts").get();
+
+    console.log("✅ Firestore Connected");
+    console.log("📄 Total Documents:", snapshot.size);
 
     res.json({
       success: true,
@@ -77,9 +82,15 @@ app.post("/queryFirestore", async (req, res) => {
 
   try {
 
-    console.log("📥 Request Body:", req.body);
+    console.log("====================================");
+    console.log("📥 Incoming Request");
+    console.log("====================================");
+
+    console.log("📦 Raw Body:", req.body);
 
     let value = req.body.value || "";
+
+    console.log("📝 Original Value:", value);
 
     /* =====================================
        Clean Search Value
@@ -94,7 +105,7 @@ app.post("/queryFirestore", async (req, res) => {
       )
       .trim();
 
-    console.log("🔍 Searching for:", searchValue);
+    console.log("🔍 Final Search Value:", searchValue);
 
     /* =====================================
        Validation
@@ -102,13 +113,13 @@ app.post("/queryFirestore", async (req, res) => {
 
     if (!searchValue) {
 
+      console.log("❌ Empty Search Value");
+
       return res.status(400).json({
         success: false,
         message: "Missing search value",
       });
     }
-
-    let snapshot;
 
     /* =====================================
        Show All Contacts
@@ -122,15 +133,23 @@ app.post("/queryFirestore", async (req, res) => {
       searchValue === "show database"
     ) {
 
-      snapshot = await db.collection("contacts").get();
+      console.log("📚 Fetching ALL contacts");
+
+      const snapshot = await db.collection("contacts").get();
+
+      console.log("📄 Total Contacts Found:", snapshot.size);
 
       const contacts = [];
 
       snapshot.forEach((doc) => {
 
+        const data = doc.data();
+
+        console.log("👤 Contact:", data);
+
         contacts.push({
           id: doc.id,
-          ...doc.data(),
+          ...data,
         });
       });
 
@@ -144,7 +163,9 @@ app.post("/queryFirestore", async (req, res) => {
        Search Single Contact
     ===================================== */
 
-    snapshot = await db
+    console.log("🔎 Starting Firestore Query...");
+
+    const snapshot = await db
       .collection("contacts")
       .where("name_lower", "==", searchValue)
       .get();
@@ -157,6 +178,8 @@ app.post("/queryFirestore", async (req, res) => {
 
     if (snapshot.empty) {
 
+      console.log("❌ No Matching Contact Found");
+
       return res.json({
         success: false,
         message: "No matching document found",
@@ -168,24 +191,37 @@ app.post("/queryFirestore", async (req, res) => {
     ===================================== */
 
     const doc = snapshot.docs[0];
+
+    console.log("🆔 Document ID:", doc.id);
+
     const data = doc.data();
 
+    console.log("✅ Firestore Data:", data);
+
     /* =====================================
-       Flat JSON Response
+       Final Response
     ===================================== */
 
-    return res.json({
+    const finalResponse = {
       success: true,
       name: data.name || "",
       phone: data.phone || "",
       name_lower: data.name_lower || "",
-    });
+    };
+
+    console.log("🚀 Final API Response:", finalResponse);
+
+    return res.json(finalResponse);
 
   } catch (error) {
 
-    console.error("❌ Query Error:", error);
+    console.error("====================================");
+    console.error("🔥 FIRESTORE ERROR");
+    console.error("====================================");
 
-    res.status(500).json({
+    console.error(error);
+
+    return res.status(500).json({
       success: false,
       error: error.message,
     });
