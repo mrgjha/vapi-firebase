@@ -197,6 +197,14 @@ app.post("/queryFirestore", async (req, res) => {
     console.log("📝 Original Value:", value);
 
     /* =====================================
+       DEBUG RESPONSE TEST
+    ===================================== */
+
+    return res.json({
+      speech: "Hello Gyanendra. Voice agent connection is successful."
+    });
+
+    /* =====================================
        Clean Search Value
     ===================================== */
 
@@ -221,49 +229,7 @@ app.post("/queryFirestore", async (req, res) => {
       console.log("❌ Empty Search Value");
 
       return res.json({
-        success: false,
         speech: "Sorry, I could not understand the contact name."
-      });
-    }
-
-    /* =====================================
-       Show All Contacts
-    ===================================== */
-
-    if (
-      searchValue === "__all__" ||
-      searchValue === "all" ||
-      searchValue === "show" ||
-      searchValue === "database"
-    ) {
-
-      console.log("📚 Fetching ALL contacts");
-
-      const snapshot = await db.collection("contacts").get();
-
-      console.log("📄 Total Contacts Found:", snapshot.size);
-
-      const contacts = [];
-
-      snapshot.forEach((doc) => {
-
-        const data = doc.data();
-
-        contacts.push({
-          id: doc.id,
-          ...data,
-        });
-      });
-
-      const allNames = contacts
-        .map(contact => `${contact.name} ${contact.phone}`)
-        .join(", ");
-
-      console.log("🚀 Returning All Contacts");
-
-      return res.json({
-        success: true,
-        speech: `Here are the contacts: ${allNames}`
       });
     }
 
@@ -289,7 +255,6 @@ app.post("/queryFirestore", async (req, res) => {
       console.log("❌ No Matching Contact Found");
 
       return res.json({
-        success: false,
         speech: "Sorry, I could not find that contact."
       });
     }
@@ -311,9 +276,6 @@ app.post("/queryFirestore", async (req, res) => {
     ===================================== */
 
     const finalResponse = {
-      success: true,
-      name: data.name || "",
-      phone: data.phone || "",
       speech: `Found contact. ${data.name}'s phone number is ${data.phone}`
     };
 
@@ -332,7 +294,6 @@ app.post("/queryFirestore", async (req, res) => {
     console.error(error);
 
     return res.status(500).json({
-      success: false,
       speech: "Sorry, something went wrong while searching the contact."
     });
   }
