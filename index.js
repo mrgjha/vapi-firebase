@@ -1,5 +1,7 @@
 const express = require("express");
 const admin = require("firebase-admin");
+const util = require("util");
+
 require("dotenv").config();
 
 const app = express();
@@ -107,7 +109,12 @@ app.post("/queryFirestore", async (req, res) => {
     console.log("📦 RAW BODY");
     console.log("====================================");
 
-    console.log(JSON.stringify(req.body, null, 2));
+    console.log(
+      util.inspect(req.body, {
+        depth: null,
+        colors: true,
+      })
+    );
 
     /* =====================================
        Extract User Message
@@ -115,23 +122,29 @@ app.post("/queryFirestore", async (req, res) => {
 
     let value = "";
 
-    // Standard formats
-    if (req.body.value) {
+    /* =====================================
+       Direct Value
+    ===================================== */
+
+    if (typeof req.body.value === "string") {
 
       value = req.body.value;
     }
 
-    else if (req.body.message) {
+    /* =====================================
+       Direct Transcript
+    ===================================== */
 
-      value = req.body.message;
-    }
-
-    else if (req.body.transcript) {
+    else if (typeof req.body.transcript === "string") {
 
       value = req.body.transcript;
     }
 
-    else if (req.body.lastUserMessage) {
+    /* =====================================
+       Last User Message
+    ===================================== */
+
+    else if (typeof req.body.lastUserMessage === "string") {
 
       value = req.body.lastUserMessage;
     }
@@ -144,12 +157,22 @@ app.post("/queryFirestore", async (req, res) => {
       req.body.message &&
       req.body.message.toolCallList &&
       req.body.message.toolCallList[0] &&
-      req.body.message.toolCallList[0].arguments &&
-      req.body.message.toolCallList[0].arguments.value
+      req.body.message.toolCallList[0].function &&
+      req.body.message.toolCallList[0].function.arguments
     ) {
 
-      value =
-        req.body.message.toolCallList[0].arguments.value;
+      try {
+
+        const args = JSON.parse(
+          req.body.message.toolCallList[0].function.arguments
+        );
+
+        value = args.value || "";
+
+      } catch (err) {
+
+        console.log("❌ Failed to parse tool arguments");
+      }
     }
 
     console.log("📝 Original Value:", value);
@@ -158,7 +181,7 @@ app.post("/queryFirestore", async (req, res) => {
        Clean Search Value
     ===================================== */
 
-    const searchValue = value
+    const searchValue = String(value)
       .toLowerCase()
       .replace(/[^a-z\s]/g, "")
       .replace(
