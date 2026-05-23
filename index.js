@@ -3,13 +3,30 @@ const admin = require("firebase-admin");
 require("dotenv").config();
 
 const app = express();
-const PORT = process.env.PORT || 3000;
+const PORT = process.env.PORT || 10000;
 
 /* =========================================
    Middleware
 ========================================= */
 
 app.use(express.json());
+
+/* =========================================
+   Global Request Logger
+========================================= */
+
+app.use((req, res, next) => {
+
+  console.log("\n====================================");
+  console.log("📥 Incoming Request");
+  console.log("====================================");
+
+  console.log("METHOD:", req.method);
+  console.log("URL:", req.url);
+  console.log("TIME:", new Date().toISOString());
+
+  next();
+});
 
 /* =========================================
    Firebase Configuration
@@ -27,19 +44,23 @@ const serviceAccount = {
    Initialize Firebase
 ========================================= */
 
-admin.initializeApp({
-  credential: admin.credential.cert(serviceAccount),
-});
+if (!admin.apps.length) {
+
+  admin.initializeApp({
+    credential: admin.credential.cert(serviceAccount),
+  });
+
+  console.log("🔥 Firebase Connected");
+}
 
 const db = admin.firestore();
-
-console.log("🔥 Firebase Connected");
 
 /* =========================================
    Home Route
 ========================================= */
 
 app.get("/", (req, res) => {
+
   res.send("🚀 Firestore API Running");
 });
 
@@ -83,12 +104,53 @@ app.post("/queryFirestore", async (req, res) => {
   try {
 
     console.log("====================================");
-    console.log("📥 Incoming Request");
+    console.log("📦 RAW BODY");
     console.log("====================================");
 
-    console.log("📦 Raw Body:", req.body);
+    console.log(JSON.stringify(req.body, null, 2));
 
-    let value = req.body.value || "";
+    /* =====================================
+       Extract User Message
+    ===================================== */
+
+    let value = "";
+
+    // Standard formats
+    if (req.body.value) {
+
+      value = req.body.value;
+    }
+
+    else if (req.body.message) {
+
+      value = req.body.message;
+    }
+
+    else if (req.body.transcript) {
+
+      value = req.body.transcript;
+    }
+
+    else if (req.body.lastUserMessage) {
+
+      value = req.body.lastUserMessage;
+    }
+
+    /* =====================================
+       VAPI TOOL CALL FORMAT
+    ===================================== */
+
+    else if (
+      req.body.message &&
+      req.body.message.toolCallList &&
+      req.body.message.toolCallList[0] &&
+      req.body.message.toolCallList[0].arguments &&
+      req.body.message.toolCallList[0].arguments.value
+    ) {
+
+      value =
+        req.body.message.toolCallList[0].arguments.value;
+    }
 
     console.log("📝 Original Value:", value);
 
@@ -100,7 +162,7 @@ app.post("/queryFirestore", async (req, res) => {
       .toLowerCase()
       .replace(/[^a-z\s]/g, "")
       .replace(
-        /\b(phone|number|contact|mobile|call|find|give|tell|me|can|you|please|show|get)\b/g,
+        /\b(phone|number|contact|mobile|call|find|give|tell|me|can|you|please|show|get|search|for)\b/g,
         ""
       )
       .trim();
@@ -209,7 +271,9 @@ app.post("/queryFirestore", async (req, res) => {
       name_lower: data.name_lower || "",
     };
 
-    console.log("🚀 Final API Response:", finalResponse);
+    console.log("🚀 Final API Response:");
+
+    console.log(JSON.stringify(finalResponse, null, 2));
 
     return res.json(finalResponse);
 
@@ -233,5 +297,6 @@ app.post("/queryFirestore", async (req, res) => {
 ========================================= */
 
 app.listen(PORT, () => {
+
   console.log(`🚀 Server running on port ${PORT}`);
 });
