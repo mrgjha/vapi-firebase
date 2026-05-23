@@ -207,7 +207,8 @@ app.post("/queryFirestore", async (req, res) => {
         /\b(phone|number|contact|mobile|call|find|give|tell|me|can|you|please|show|get|search|for)\b/g,
         ""
       )
-      .trim();
+      .trim()
+      .split(" ")[0];
 
     console.log("🔍 Final Search Value:", searchValue);
 
@@ -232,9 +233,8 @@ app.post("/queryFirestore", async (req, res) => {
     if (
       searchValue === "__all__" ||
       searchValue === "all" ||
-      searchValue === "show all" ||
-      searchValue === "all contacts" ||
-      searchValue === "show database"
+      searchValue === "show" ||
+      searchValue === "database"
     ) {
 
       console.log("📚 Fetching ALL contacts");
@@ -249,13 +249,13 @@ app.post("/queryFirestore", async (req, res) => {
 
         const data = doc.data();
 
-        console.log("👤 Contact:", data);
-
         contacts.push({
           id: doc.id,
           ...data,
         });
       });
+
+      console.log("🚀 Returning All Contacts");
 
       return res.json({
         success: true,
