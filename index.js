@@ -220,9 +220,9 @@ app.post("/queryFirestore", async (req, res) => {
 
       console.log("❌ Empty Search Value");
 
-      return res.status(400).json({
+      return res.json({
         success: false,
-        message: "Missing search value",
+        speech: "Sorry, I could not understand the contact name."
       });
     }
 
@@ -255,11 +255,15 @@ app.post("/queryFirestore", async (req, res) => {
         });
       });
 
+      const allNames = contacts
+        .map(contact => `${contact.name} ${contact.phone}`)
+        .join(", ");
+
       console.log("🚀 Returning All Contacts");
 
       return res.json({
         success: true,
-        contacts,
+        speech: `Here are the contacts: ${allNames}`
       });
     }
 
@@ -286,7 +290,7 @@ app.post("/queryFirestore", async (req, res) => {
 
       return res.json({
         success: false,
-        message: "No matching document found",
+        speech: "Sorry, I could not find that contact."
       });
     }
 
@@ -310,7 +314,7 @@ app.post("/queryFirestore", async (req, res) => {
       success: true,
       name: data.name || "",
       phone: data.phone || "",
-      name_lower: data.name_lower || "",
+      speech: `Found contact. ${data.name}'s phone number is ${data.phone}`
     };
 
     console.log("🚀 Final API Response:");
@@ -329,7 +333,7 @@ app.post("/queryFirestore", async (req, res) => {
 
     return res.status(500).json({
       success: false,
-      error: error.message,
+      speech: "Sorry, something went wrong while searching the contact."
     });
   }
 });
