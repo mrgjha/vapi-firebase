@@ -5,15 +5,15 @@ require("dotenv").config();
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-/* =================================
+/* =========================================
    Middleware
-================================= */
+========================================= */
 
 app.use(express.json());
 
-/* =================================
+/* =========================================
    Firebase Admin Configuration
-================================= */
+========================================= */
 
 const serviceAccount = {
   projectId: process.env.FIREBASE_PROJECT_ID,
@@ -23,9 +23,9 @@ const serviceAccount = {
     : undefined,
 };
 
-/* =================================
+/* =========================================
    Initialize Firebase
-================================= */
+========================================= */
 
 admin.initializeApp({
   credential: admin.credential.cert(serviceAccount),
@@ -35,20 +35,19 @@ const db = admin.firestore();
 
 console.log("🔥 Firebase Connected");
 
-/* =================================
+/* =========================================
    Home Route
-================================= */
+========================================= */
 
 app.get("/", (req, res) => {
   res.send("🚀 Firestore API Running");
 });
 
-/* =================================
+/* =========================================
    Firestore Connection Test
-================================= */
+========================================= */
 
 app.get("/test-firestore", async (req, res) => {
-
   try {
 
     const snapshot = await db.collection("contacts").get();
@@ -69,9 +68,9 @@ app.get("/test-firestore", async (req, res) => {
   }
 });
 
-/* =================================
+/* =========================================
    Query Firestore
-================================= */
+========================================= */
 
 app.post("/queryFirestore", async (req, res) => {
 
@@ -79,24 +78,31 @@ app.post("/queryFirestore", async (req, res) => {
 
     console.log("📥 Request Body:", req.body);
 
-    const { collection, field, value } = req.body;
+    const { value } = req.body;
 
     /* Validation */
 
-    if (!collection || !field || !value) {
-
+    if (!value) {
       return res.status(400).json({
         success: false,
-        message: "Missing collection, field, or value",
+        message: "Missing value",
       });
     }
+
+    /* Convert to lowercase */
+
+    const searchValue = value.toLowerCase().trim();
+
+    console.log("🔍 Searching for:", searchValue);
 
     /* Query Firestore */
 
     const snapshot = await db
-      .collection(collection)
-      .where(field, "==", value)
+      .collection("contacts")
+      .where("name_lower", "==", searchValue)
       .get();
+
+    console.log("📄 Documents Found:", snapshot.size);
 
     /* No Results */
 
@@ -120,7 +126,7 @@ app.post("/queryFirestore", async (req, res) => {
       });
     });
 
-    /* Send Success Response */
+    /* Success Response */
 
     res.json({
       success: true,
@@ -139,9 +145,9 @@ app.post("/queryFirestore", async (req, res) => {
   }
 });
 
-/* =================================
+/* =========================================
    Start Server
-================================= */
+========================================= */
 
 app.listen(PORT, () => {
   console.log(`🚀 Server running on port ${PORT}`);
