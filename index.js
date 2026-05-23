@@ -161,17 +161,36 @@ app.post("/queryFirestore", async (req, res) => {
       req.body.message.toolCallList[0].function.arguments
     ) {
 
-      try {
+      const args =
+        req.body.message.toolCallList[0].function.arguments;
 
-        const args = JSON.parse(
-          req.body.message.toolCallList[0].function.arguments
-        );
+      console.log("🛠 Tool Arguments:", args);
+
+      /* ===================================
+         If Arguments is STRING
+      =================================== */
+
+      if (typeof args === "string") {
+
+        try {
+
+          const parsed = JSON.parse(args);
+
+          value = parsed.value || "";
+
+        } catch (err) {
+
+          console.log("❌ JSON parse failed");
+        }
+      }
+
+      /* ===================================
+         If Arguments is OBJECT
+      =================================== */
+
+      else if (typeof args === "object") {
 
         value = args.value || "";
-
-      } catch (err) {
-
-        console.log("❌ Failed to parse tool arguments");
       }
     }
 
