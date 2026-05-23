@@ -12,7 +12,7 @@ const PORT = process.env.PORT || 3000;
 app.use(express.json());
 
 /* =========================================
-   Firebase Admin Configuration
+   Firebase Configuration
 ========================================= */
 
 const serviceAccount = {
@@ -44,10 +44,11 @@ app.get("/", (req, res) => {
 });
 
 /* =========================================
-   Firestore Connection Test
+   Firestore Test Route
 ========================================= */
 
 app.get("/test-firestore", async (req, res) => {
+
   try {
 
     const snapshot = await db.collection("contacts").get();
@@ -69,7 +70,7 @@ app.get("/test-firestore", async (req, res) => {
 });
 
 /* =========================================
-   Query Firestore
+   Query Firestore Route
 ========================================= */
 
 app.post("/queryFirestore", async (req, res) => {
@@ -78,33 +79,81 @@ app.post("/queryFirestore", async (req, res) => {
 
     console.log("📥 Request Body:", req.body);
 
-    const { value } = req.body;
+    let value = req.body.value || "";
 
-    /* Validation */
+    /* =====================================
+       Clean Search Value
+    ===================================== */
 
-    if (!value) {
-      return res.status(400).json({
-        success: false,
-        message: "Missing value",
-      });
-    }
-
-    /* Convert to lowercase */
-
-    const searchValue = value.toLowerCase().trim();
+    const searchValue = value
+      .toLowerCase()
+      .replace(/[^a-z\s]/g, "")
+      .replace(
+        /\b(phone|number|contact|mobile|call|find|give|tell|me|can|you|please|show|get)\b/g,
+        ""
+      )
+      .trim();
 
     console.log("🔍 Searching for:", searchValue);
 
-    /* Query Firestore */
+    /* =====================================
+       Validation
+    ===================================== */
 
-    const snapshot = await db
+    if (!searchValue) {
+
+      return res.status(400).json({
+        success: false,
+        message: "Missing search value",
+      });
+    }
+
+    let snapshot;
+
+    /* =====================================
+       Show All Contacts
+    ===================================== */
+
+    if (
+      searchValue === "__all__" ||
+      searchValue === "all" ||
+      searchValue === "show all" ||
+      searchValue === "all contacts" ||
+      searchValue === "show database"
+    ) {
+
+      snapshot = await db.collection("contacts").get();
+
+      const contacts = [];
+
+      snapshot.forEach((doc) => {
+
+        contacts.push({
+          id: doc.id,
+          ...doc.data(),
+        });
+      });
+
+      return res.json({
+        success: true,
+        contacts,
+      });
+    }
+
+    /* =====================================
+       Search Single Contact
+    ===================================== */
+
+    snapshot = await db
       .collection("contacts")
       .where("name_lower", "==", searchValue)
       .get();
 
     console.log("📄 Documents Found:", snapshot.size);
 
-    /* No Results */
+    /* =====================================
+       No Results
+    ===================================== */
 
     if (snapshot.empty) {
 
@@ -114,24 +163,22 @@ app.post("/queryFirestore", async (req, res) => {
       });
     }
 
-    /* Extract Documents */
+    /* =====================================
+       Extract First Result
+    ===================================== */
 
-    const results = [];
+    const doc = snapshot.docs[0];
+    const data = doc.data();
 
-    snapshot.forEach((doc) => {
+    /* =====================================
+       Flat JSON Response
+    ===================================== */
 
-      results.push({
-        id: doc.id,
-        ...doc.data(),
-      });
-    });
-
-    /* Success Response */
-
-    res.json({
+    return res.json({
       success: true,
-      count: results.length,
-      data: results,
+      name: data.name || "",
+      phone: data.phone || "",
+      name_lower: data.name_lower || "",
     });
 
   } catch (error) {
